@@ -22,7 +22,12 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.res.imageResource
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import kotlin.math.cos
+import kotlin.math.roundToInt
 import kotlin.math.sin
 import kotlin.time.Duration.Companion.seconds
 
@@ -40,6 +45,7 @@ data class Planet(
 fun SolarSystemScreen() {
     val textMeasurer = rememberTextMeasurer()
     val infiniteTransition = rememberInfiniteTransition(label = "SolarSystemTransition")
+    val rajeshImage = ImageBitmap.imageResource(id = R.drawable.rajesh)
     
     val rotationState = infiniteTransition.animateFloat(
         initialValue = 0f,
@@ -62,10 +68,10 @@ fun SolarSystemScreen() {
     )
 
     val waveState = infiniteTransition.animateFloat(
-        initialValue = -15f,
-        targetValue = 15f,
+        initialValue = -5f,
+        targetValue = 5f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 500, easing = LinearOutSlowInEasing),
+            animation = tween(durationMillis = 2000, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "WaveState"
@@ -87,12 +93,16 @@ fun SolarSystemScreen() {
         targetValue = 1f, // Normalized altitude (0.0 to 1.0)
         animationSpec = infiniteRepeatable(
             animation = keyframes {
-                durationMillis = 15000 // Slower overall
-                0f at 0
-                0f at 4000 // Longer wait on Earth
-                1f at 9000 // Slower ascent
-                1f at 11000 // Longer float at peak
-                0f at 15000 // Slower descent
+                durationMillis = 20000 // Balanced 20s cycle
+                0.01f at 0 // Show "Hi from Rajesh" to start
+                0.01f at 3000 // Hold greeting for 3s
+                0.02f at 3001 // Ignition!
+                1f at 8000 // Reaches Peak
+                1f at 10000 // Floats at Peak
+                0.01f at 16000 // Lands
+                0.009f at 18500 // Holds "Safe landing!" for 2.5s
+                0f at 18501 // Disappears
+                0f at 20000 // Stay hidden until restart
             },
             repeatMode = RepeatMode.Restart
         ),
@@ -102,7 +112,7 @@ fun SolarSystemScreen() {
     // Initial delay for Rajesh appearance
     var isRajeshActive by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
-        delay(2.seconds)
+        delay((2).seconds)
         isRajeshActive = true
     }
 
@@ -161,10 +171,10 @@ fun SolarSystemScreen() {
             // Draw Sun Name
             drawTextCentered(
                 "Sun",
-                center.copy(y = center.y - 70f),
+                center.copy(y = center.y - 70f * scaleFactor),
                 textMeasurer,
                 Color.White,
-                1.0f
+                scaleFactor
             )
 
             // Draw ComposeVerse Title
@@ -213,7 +223,7 @@ fun SolarSystemScreen() {
                 )
 
                 // Draw Rajesh on Earth
-                if (planet.hasRajesh && isRajeshActive) {
+                if (planet.hasRajesh && isRajeshActive && altitudeState.value > 0f) {
                     // radial direction from center
                     val dx = x - center.x
                     val dy = y - center.y
@@ -224,7 +234,7 @@ fun SolarSystemScreen() {
                     val currentAltitude = altitudeState.value * jumpPeak
 
                     val rajeshPos = planetPosition + Offset(radialDir.x * (scaledPlanetRadius + currentAltitude), radialDir.y * (scaledPlanetRadius + currentAltitude))
-                    drawRajesh(rajeshPos, waveState.value, altitudeState.value, isDescending, scaleFactor, textMeasurer)
+                    drawRajesh(rajeshPos, waveState.value, altitudeState.value, isDescending, scaleFactor, textMeasurer, rajeshImage)
                 }
 
                 // Draw Planet Name
@@ -290,77 +300,106 @@ private fun DrawScope.drawRajesh(
     altitudePercent: Float,
     isDescending: Boolean,
     scale: Float,
-    textMeasurer: androidx.compose.ui.text.TextMeasurer
+    textMeasurer: androidx.compose.ui.text.TextMeasurer,
+    rajeshImage: ImageBitmap
 ) {
-    // Grow size up to 4x as he jumps (base 1f + 3f at peak)
-    val size = 15f * scale * (1f + altitudePercent * 3f)
-    // Colors for Rajesh
-    val shirtColor = Color(0xFFF44336) // Red
-    val pantColor = Color(0xFF2196F3)  // Blue
-    val skinColor = Color(0xFFFFCCBC)  // Skin tone
-
-    // Draw Body (Shirt)
-    drawLine(
-        color = shirtColor,
-        start = position + Offset(0f, -size * 0.4f),
-        end = position + Offset(0f, -size),
-        strokeWidth = 3f
-    )
-    // Draw Legs (Pants)
-    drawLine(
-        color = pantColor,
-        start = position,
-        end = position + Offset(0f, -size * 0.4f),
-        strokeWidth = 3f
-    )
-
-    // Draw Head
-    drawCircle(
-        color = skinColor,
-        radius = 4f,
-        center = position + Offset(0f, -size - 4f)
-    )
-    // Draw Arms
-    // Standing arm
-    drawLine(
-        color = skinColor,
-        start = position + Offset(0f, -size * 0.7f),
-        end = position + Offset(-8f, -size * 0.4f),
-        strokeWidth = 2f
-    )
-    // Waving arm
+    // Base size increased 3x (from 15f to 45f). Grows up to 4x total at peak.
+    val rajeshSize = 30f * scale * (1f + altitudePercent * 2f)
+    
+    // Draw Rocket
+    val rocketWidth = rajeshSize * 0.8f
+    val rocketHeight = rajeshSize * 1.5f
+    
     withTransform({
-        rotate(waveAngle, position + Offset(0f, -size * 0.7f))
+        // Tilt the rocket based on movement
+        rotate(waveAngle / 2f, position)
     }) {
-        drawLine(
-            color = skinColor,
-            start = position + Offset(0f, -size * 0.7f),
-            end = position + Offset(10f, -size),
-            strokeWidth = 2f
+        // Rocket Body
+        val rocketPath = Path().apply {
+            moveTo(position.x, position.y - rocketHeight)
+            // Nose cone
+            cubicTo(
+                position.x + rocketWidth * 0.5f, position.y - rocketHeight,
+                position.x + rocketWidth * 0.5f, position.y - rocketHeight * 0.5f,
+                position.x + rocketWidth * 0.5f, position.y
+            )
+            lineTo(position.x - rocketWidth * 0.5f, position.y)
+            cubicTo(
+                position.x - rocketWidth * 0.5f, position.y - rocketHeight * 0.5f,
+                position.x - rocketWidth * 0.5f, position.y - rocketHeight,
+                position.x, position.y - rocketHeight
+            )
+            close()
+        }
+        
+        // Draw Rocket Trail/Flame
+        if (altitudePercent > 0.05f) {
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(Color(0xFFFFD600), Color(0xFFFF3D00), Color.Transparent),
+                    center = position + Offset(0f, rocketHeight * 0.1f),
+                    radius = rocketWidth * (altitudePercent + 0.5f)
+                ),
+                radius = rocketWidth * (altitudePercent + 0.5f),
+                center = position + Offset(0f, rocketHeight * 0.1f)
+            )
+        }
+
+        // Draw fins
+        drawPath(
+            path = Path().apply {
+                moveTo(position.x - rocketWidth * 0.5f, position.y - rocketHeight * 0.3f)
+                lineTo(position.x - rocketWidth * 1.0f, position.y)
+                lineTo(position.x - rocketWidth * 0.5f, position.y)
+                close()
+                
+                moveTo(position.x + rocketWidth * 0.5f, position.y - rocketHeight * 0.3f)
+                lineTo(position.x + rocketWidth * 1.0f, position.y)
+                lineTo(position.x + rocketWidth * 0.5f, position.y)
+                close()
+            },
+            color = Color(0xFFD32F2F)
+        )
+
+        drawPath(
+            path = rocketPath,
+            brush = Brush.linearGradient(
+                colors = listOf(Color(0xFFE0E0E0), Color(0xFF9E9E9E))
+            )
+        )
+        
+        // Draw Face Image inside a "window"
+        val windowSize = rocketWidth * 0.8f
+        val windowTopLeft = Offset(position.x - windowSize / 2, position.y - rocketHeight * 0.7f)
+        
+        // Window frame
+        drawCircle(
+            color = Color(0xFF64B5F6),
+            radius = windowSize / 2 + 2f,
+            center = windowTopLeft + Offset(windowSize / 2, windowSize / 2)
+        )
+        
+        drawImage(
+            image = rajeshImage,
+            dstOffset = IntOffset(
+                (windowTopLeft.x).roundToInt(),
+                (windowTopLeft.y).roundToInt()
+            ),
+            dstSize = IntSize(
+                (windowSize).roundToInt(),
+                (windowSize).roundToInt()
+            )
         )
     }
 
-    // Draw Rocket Booster if jumping
-    if (altitudePercent > 0.01f) {
-        val flameColor = Color(0xFFFF5722)
-        drawCircle(
-            brush = Brush.radialGradient(
-                colors = listOf(flameColor, Color.Yellow, Color.Transparent),
-                center = position,
-                radius = 12f * (altitudePercent + 0.5f) * scale
-            ),
-            radius = 15f * (altitudePercent + 0.5f) * scale,
-            center = position
-        )
-    }
 
     // Draw Fancy Speech Bubble
     val textToDraw = when {
-        altitudePercent < 0.01f -> if (isDescending) "Safe landing! 🏡" else "Hi from Rajesh"
+        altitudePercent < 0.02f && isDescending -> "Safe landing! 🏡"
+        altitudePercent < 0.02f -> "Hi from Rajesh" // Restored initial greeting
         isDescending -> "Brace for impact! ☄️"
         altitudePercent < 0.2f -> "Ignition! 🚀"
-        altitudePercent < 0.5f -> "Woohooo! We're jumping! 🎢"
-        altitudePercent < 0.8f -> "I can see the Sun! ☀️"
+        altitudePercent < 0.6f -> "Woohooo! We're jumping! 🎢"
         altitudePercent < 0.98f -> "Neptune, here I come! 🌌"
         else -> "COMPOSE POWEEEERRR! ✨"
     }
@@ -371,7 +410,7 @@ private fun DrawScope.drawRajesh(
     val bubbleWidth = textLayoutResult.size.width + 12f * scale
     val bubbleHeight = textLayoutResult.size.height + 4f * scale
     
-    val bubbleOffset = Offset(10f * scale, -size - 15f * scale)
+    val bubbleOffset = Offset(rajeshSize + 5f * scale, -rajeshSize - 20f * scale)
     val bubblePos = position + bubbleOffset
     
     val bubblePath = Path().apply {
@@ -380,10 +419,10 @@ private fun DrawScope.drawRajesh(
         lineTo(bubblePos.x + bubbleWidth, bubblePos.y - bubbleHeight)
         lineTo(bubblePos.x, bubblePos.y - bubbleHeight)
         close()
-        // Pointer
-        moveTo(bubblePos.x + 5f, bubblePos.y)
-        lineTo(bubblePos.x - 5f, bubblePos.y + 10f)
-        lineTo(bubblePos.x + 15f, bubblePos.y)
+        // Pointer - points back to head area
+        moveTo(bubblePos.x + 2f * scale, bubblePos.y)
+        lineTo(position.x + rajeshSize * 0.5f, position.y - rajeshSize * 1.2f)
+        lineTo(bubblePos.x + 12f * scale, bubblePos.y)
     }
     
     // Fancy bubble background
