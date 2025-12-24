@@ -19,6 +19,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "SolarSystemCompose"
+rootProject.name = "ComposeVerse"
 include(":app")
  
