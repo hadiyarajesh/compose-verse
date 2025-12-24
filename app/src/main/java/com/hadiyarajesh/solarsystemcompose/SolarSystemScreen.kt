@@ -306,90 +306,145 @@ private fun DrawScope.drawRajesh(
     // Base size increased 3x (from 15f to 45f). Grows up to 4x total at peak.
     val rajeshSize = 30f * scale * (1f + altitudePercent * 2f)
     
-    // Draw Rocket
-    val rocketWidth = rajeshSize * 0.8f
-    val rocketHeight = rajeshSize * 1.5f
+    // Draw Advanced Rocket
+    val rocketWidth = rajeshSize * 0.9f
+    val rocketHeight = rajeshSize * 1.8f
     
     withTransform({
-        // Tilt the rocket based on movement
         rotate(waveAngle / 2f, position)
     }) {
-        // Rocket Body
-        val rocketPath = Path().apply {
-            moveTo(position.x, position.y - rocketHeight)
-            // Nose cone
+        // 1. Draw Exhaust Plume (only when moving)
+        if (altitudePercent > 0.01f) {
+            val flicker = (waveAngle % 5f) * scale
+            val plumePath = Path().apply {
+                moveTo(position.x - rocketWidth * 0.3f, position.y)
+                quadraticTo(position.x, position.y + rocketHeight * 0.8f + flicker, position.x + rocketWidth * 0.3f, position.y)
+                close()
+            }
+            drawPath(
+                path = plumePath,
+                brush = Brush.verticalGradient(
+                    colors = listOf(Color(0xFFFFEA00), Color(0xFFFF5722), Color.Transparent),
+                    startY = position.y,
+                    endY = position.y + rocketHeight * 0.8f + flicker
+                ),
+                alpha = 0.8f
+            )
+            
+            // Core bloom
+            drawCircle(
+                color = Color.White.copy(alpha = 0.6f),
+                radius = rocketWidth * 0.2f,
+                center = position + Offset(0f, 5f * scale)
+            )
+        }
+
+        // 2. Rocket Fins (Rear)
+        val finPath = Path().apply {
+            // Left Fin
+            moveTo(position.x - rocketWidth * 0.45f, position.y - rocketHeight * 0.4f)
+            lineTo(position.x - rocketWidth * 0.9f, position.y)
+            lineTo(position.x - rocketWidth * 0.45f, position.y)
+            close()
+            // Right Fin
+            moveTo(position.x + rocketWidth * 0.45f, position.y - rocketHeight * 0.4f)
+            lineTo(position.x + rocketWidth * 0.9f, position.y)
+            lineTo(position.x + rocketWidth * 0.45f, position.y)
+            close()
+        }
+        drawPath(finPath, Color(0xFFC62828)) // Darker Red for fins
+
+        // 3. Rocket Body (Main Cylinder + Nose)
+        val bodyPath = Path().apply {
+            moveTo(position.x, position.y - rocketHeight) // Tip
+            // Nose Cone curve
             cubicTo(
                 position.x + rocketWidth * 0.5f, position.y - rocketHeight,
-                position.x + rocketWidth * 0.5f, position.y - rocketHeight * 0.5f,
-                position.x + rocketWidth * 0.5f, position.y
+                position.x + rocketWidth * 0.5f, position.y - rocketHeight * 0.6f,
+                position.x + rocketWidth * 0.5f, position.y - rocketHeight * 0.3f
             )
+            // Body line
+            lineTo(position.x + rocketWidth * 0.5f, position.y) 
             lineTo(position.x - rocketWidth * 0.5f, position.y)
+            lineTo(position.x - rocketWidth * 0.5f, position.y - rocketHeight * 0.3f)
+            // Other nose curve
             cubicTo(
-                position.x - rocketWidth * 0.5f, position.y - rocketHeight * 0.5f,
+                position.x - rocketWidth * 0.5f, position.y - rocketHeight * 0.6f,
                 position.x - rocketWidth * 0.5f, position.y - rocketHeight,
                 position.x, position.y - rocketHeight
             )
             close()
         }
         
-        // Draw Rocket Trail/Flame
-        if (altitudePercent > 0.05f) {
+        drawPath(
+            path = bodyPath,
+            brush = Brush.linearGradient(
+                colors = listOf(Color(0xFFF5F5F5), Color(0xFFBDBDBD), Color(0xFF757575)),
+                start = Offset(position.x - rocketWidth, position.y),
+                end = Offset(position.x + rocketWidth, position.y)
+            )
+        )
+
+        // 4. Panel Details & Rivets
+        val detailColor = Color.Black.copy(alpha = 0.2f)
+        // Horizontal panel line
+        drawLine(
+            color = detailColor,
+            start = Offset(position.x - rocketWidth * 0.5f, position.y - rocketHeight * 0.35f),
+            end = Offset(position.x + rocketWidth * 0.5f, position.y - rocketHeight * 0.35f),
+            strokeWidth = 1f * scale
+        )
+        // Rivets
+        for (i in -2..2) {
             drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(Color(0xFFFFD600), Color(0xFFFF3D00), Color.Transparent),
-                    center = position + Offset(0f, rocketHeight * 0.1f),
-                    radius = rocketWidth * (altitudePercent + 0.5f)
-                ),
-                radius = rocketWidth * (altitudePercent + 0.5f),
-                center = position + Offset(0f, rocketHeight * 0.1f)
+                color = detailColor,
+                radius = 1.5f * scale,
+                center = Offset(position.x + (i * rocketWidth * 0.2f), position.y - 10f * scale)
             )
         }
 
-        // Draw fins
-        drawPath(
-            path = Path().apply {
-                moveTo(position.x - rocketWidth * 0.5f, position.y - rocketHeight * 0.3f)
-                lineTo(position.x - rocketWidth * 1.0f, position.y)
-                lineTo(position.x - rocketWidth * 0.5f, position.y)
-                close()
-                
-                moveTo(position.x + rocketWidth * 0.5f, position.y - rocketHeight * 0.3f)
-                lineTo(position.x + rocketWidth * 1.0f, position.y)
-                lineTo(position.x + rocketWidth * 0.5f, position.y)
-                close()
-            },
-            color = Color(0xFFD32F2F)
+        // 5. Cockpit / Window
+        val windowSize = rocketWidth * 0.8f
+        val windowCenter = position + Offset(0f, -rocketHeight * 0.6f)
+        
+        // Window Frame
+        drawCircle(
+            color = Color(0xFF455A64),
+            radius = windowSize * 0.55f,
+            center = windowCenter
+        )
+        // Glass
+        drawCircle(
+            brush = Brush.radialGradient(
+                colors = listOf(Color(0xFFB3E5FC), Color(0xFF03A9F4)),
+                center = windowCenter - Offset(windowSize * 0.1f, windowSize * 0.1f),
+                radius = windowSize * 0.5f
+            ),
+            radius = windowSize * 0.5f,
+            center = windowCenter
         )
 
-        drawPath(
-            path = rocketPath,
-            brush = Brush.linearGradient(
-                colors = listOf(Color(0xFFE0E0E0), Color(0xFF9E9E9E))
+        // 6. Rajesh (In the window with circular clipping)
+        val imageSize = windowSize * 0.95f
+        val imageOffset = windowCenter - Offset(imageSize / 2, imageSize / 2)
+        
+        withTransform({
+            clipPath(Path().apply {
+                addOval(androidx.compose.ui.geometry.Rect(windowCenter, windowSize * 0.5f))
+            })
+        }) {
+            drawImage(
+                image = rajeshImage,
+                dstOffset = IntOffset(
+                    (imageOffset.x).roundToInt(),
+                    (imageOffset.y).roundToInt()
+                ),
+                dstSize = IntSize(
+                    imageSize.roundToInt(),
+                    imageSize.roundToInt()
+                )
             )
-        )
-        
-        // Draw Face Image inside a "window"
-        val windowSize = rocketWidth * 0.8f
-        val windowTopLeft = Offset(position.x - windowSize / 2, position.y - rocketHeight * 0.7f)
-        
-        // Window frame
-        drawCircle(
-            color = Color(0xFF64B5F6),
-            radius = windowSize / 2 + 2f,
-            center = windowTopLeft + Offset(windowSize / 2, windowSize / 2)
-        )
-        
-        drawImage(
-            image = rajeshImage,
-            dstOffset = IntOffset(
-                (windowTopLeft.x).roundToInt(),
-                (windowTopLeft.y).roundToInt()
-            ),
-            dstSize = IntSize(
-                (windowSize).roundToInt(),
-                (windowSize).roundToInt()
-            )
-        )
+        }
     }
 
 
