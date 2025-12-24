@@ -4,6 +4,10 @@ ComposeVerse is a high-performance Solar System simulation built entirely using 
 and **Canvas API**. It features a mesmerizing orbital dance of planets, dynamic space effects, and a
 character-driven cosmic adventure.
 
+## 📺 Project Demo
+
+<video src="assets/demo.mp4" autoplay loop muted width="100%"></video>
+
 ## 🌟 Key Features
 
 ### 🔭 Celestial Mechanics
