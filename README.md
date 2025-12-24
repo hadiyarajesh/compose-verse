@@ -6,7 +6,7 @@ character-driven cosmic adventure.
 
 ## 📺 Project Demo
 
-<video src="assets/demo.mp4" autoplay loop muted width="100%"></video>
+![](assets/demo.mp4)
 
 ## 🌟 Key Features
 
